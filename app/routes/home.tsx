@@ -1,21 +1,31 @@
 import type { Route } from "./+types/home";
 import { createOpenAI } from '@ai-sdk/openai';
-import { generateText } from 'ai';
+import { generateObject } from 'ai';
+import { z } from 'zod';
 
 // Create a configured instance
 const openai = createOpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
 });
 
+const recipeSchema = z.object({
+  name: z.string(),
+  ingredients: z.array(z.string()),
+  instructions: z.array(z.string()),
+});
+
+type Recipe = z.infer<typeof recipeSchema>;
+
 export async function loader() {
-  const { text } = await generateText({
+  const result = await generateObject({
     model: openai('gpt-3.5-turbo'),
     prompt: 'Write an Italian traditional recipe for a pizza margherita. Always use metric units, and use the metric system for the ingredients.',
+    schema: recipeSchema,
   });
 
-  return {
-    recipe: text
-  };
+  console.log(result);
+
+  return result;
 }
 
 export function meta({}: Route.MetaArgs) {
@@ -28,11 +38,23 @@ export function meta({}: Route.MetaArgs) {
 export default function Home({
   loaderData
 }: Route.ComponentProps) {
-  const { recipe } = loaderData;
+  const {
+    object: {
+      name, 
+      ingredients, 
+      instructions
+    }
+  } = loaderData;
 
   return (
     <div className="recipe-container">
-      <pre className="recipe">{recipe}</pre>
+      <h2>{name}</h2>
+      <ul>
+        {ingredients.map((ingredient) => <li key={ingredient}>{ingredient}</li>)}
+      </ul>
+      <ol>
+        {instructions.map((instruction) => <li key={instruction}>{instruction}</li>)}
+      </ol>
     </div>
   );
 }
